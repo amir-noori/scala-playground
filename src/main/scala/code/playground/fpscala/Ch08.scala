@@ -1,5 +1,7 @@
 package code.playground.fpscala
 
+import scala.annotation.tailrec
+
 
 object Ch08 extends App {
 
@@ -216,7 +218,7 @@ object Ch08 extends App {
       if (as.isEmpty) empty
       else cons(as.head, apply(as.tail: _*))
 
-//    val ones: Stream[Int] = Stream.cons(1, ones)
+    val ones: Stream[Int] = Stream.cons(1, ones)
 
     // This is more efficient than `cons(a, constant(a))` since it's just
     // one object referencing itself.
@@ -235,17 +237,11 @@ object Ch08 extends App {
       go(0, 1)
     }
 
-    def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = {
-      println(s"z: ${z}")
-      f(z) match {
-        case Some((h, s)) => {
-          cons(h, unfold(s)(f))
-        }
-        case None => {
-          empty
-        }
-      }
+    def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = f(z) match {
+      case Some((h, s)) => cons(h, unfold(s)(f))
+      case None => empty
     }
+
 
     /*
     The below two implementations use `fold` and `map` functions in the Option class to implement unfold, thereby doing away with the need to manually pattern match as in the above solution.
@@ -259,7 +255,7 @@ object Ch08 extends App {
     /*
     Scala provides shorter syntax when the first action of a function literal is to match on an expression.  The function passed to `unfold` in `fibsViaUnfold` is equivalent to `p => p match { case (f0,f1) => ... }`, but we avoid having to choose a name for `p`, only to pattern match on it.
     */
-//    val fibsViaUnfold = unfold((0, 1)) { case (f0, f1) => Some((f0, (f1, f0 + f1))) }
+    //    val fibsViaUnfold = unfold((0, 1)) { case (f0, f1) => Some((f0, (f1, f0 + f1))) }
 
     def fromViaUnfold(n: Int) =
       unfold(n)(n => Some((n, n + 1)))
@@ -268,7 +264,7 @@ object Ch08 extends App {
       unfold(a)(_ => Some((a, a)))
 
     // could also of course be implemented as constant(1)
-//    val onesViaUnfold = unfold(1)(_ => Some((1, 1)))
+    //    val onesViaUnfold = unfold(1)(_ => Some((1, 1)))
   }
 
 
@@ -661,16 +657,28 @@ object TestStream {
       })
     }
 
-//    val a: List[Int] = List[Int](55, 22, 3, 4)
-    go(Stream[Int](55, 22, 3, 4))
-//    val x = Stream.unfold[Int, List[Int]](a)(l => {
-//      println(l)
-//      Some(1, l)
-//    })
+    //    val a: List[Int] = List[Int](55, 22, 3, 4)
+    //    go(Stream[Int](55, 22, 3, 4))
+    //    val x = Stream.unfold[Int, List[Int]](a)(l => {
+    //      println(l)
+    //      Some(1, l)
+    //    })
 
-//    x.map(x => {
-//      println(s"x: ${x}")
-//    })
+    //    x.map(x => {
+    //      println(s"x: ${x}")
+    //    })
+
+
+    import code.playground.fpscala.Ch08.Cons
+
+    @tailrec
+    def traverse(s: Stream[Unit]): Unit = s match {
+      case Cons(h, t) => h(); traverse(t())
+    }
+
+
+    val allOnes: Stream[Unit] = Stream.ones.map(one => println(s"one: ${one}"))
+    // traverse(allOnes)
 
   }
 
