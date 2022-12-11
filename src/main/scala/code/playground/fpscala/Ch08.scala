@@ -1,5 +1,6 @@
 package code.playground.fpscala
 
+
 import scala.annotation.tailrec
 
 
@@ -642,7 +643,88 @@ object Ch08 extends App {
   }
 
 
+  object Attempt3 {
+
+
+    case class Gen[A](sample: State[RNG, A]) {
+      def run(): A = sample.run(RNG.Simple((new java.util.Date()).getTime))._1
+
+      def map[B](f: A => B): Gen[B] = Gen(sample.map(f))
+
+      def flatMap[B](f: A => Gen[B]): Gen[B] = Gen(sample.flatMap(a => f(a).sample))
+
+    }
+
+    object Gen {
+      def listOf[A](a: Gen[A]): Gen[List[A]] = ???
+
+      def listOfN[A](n: Int, g: Gen[A]): Gen[List[A]] = {
+
+        @tailrec
+        def genList(i: Int, rng: RNG, acc: List[A]): (List[A], RNG) =
+          if (i < 0) (acc, rng)
+          else {
+            val (a, newRng): (A, RNG) = g.sample.run(rng)
+            genList(i - 1, newRng, a :: acc)
+          }
+
+        Gen(State(rng => genList(n, rng, List())))
+      }
+
+      def listOfN_[A](n: Int, g: Gen[A]): Gen[List[A]] =
+        Gen(State.sequence(List.fill(n)(g.sample)))
+
+      def unit[A](a: A): Gen[A] = Gen(State.unit(a))
+
+      def boolean: Gen[Boolean] = Gen(State[RNG, Boolean](RNG.boolean))
+
+      def chooseInt(start: Int, stopExclusive: Int): Gen[Int] =
+        Gen(State(RNG.nonNegativeInt).map(n => start + n % (stopExclusive - start)))
+
+      def chooseDouble(start: Int, stopExclusive: Int): Gen[Double] =
+        Gen(State(RNG.double).map(n => start + n % (stopExclusive - start)))
+
+      def union[A](g1: Gen[A], g2: Gen[A])(f: (A, A) => A): Gen[A] =
+        for {
+          a <- g1
+          b <- g2
+        } yield unit(f(a, b))
+    }
+
+
+    trait Prop[A] {
+
+      import Prop._
+
+      def check(): Either[(FailedCase, SuccessCount), SuccessCount]
+
+      def &&(p: Prop[A]): Prop[A]
+    }
+
+    object Prop {
+      type SuccessCount = Int
+      type FailedCase = String
+
+      def forAll[A](a: Gen[A])(f: A => Boolean): Prop[List[A]] = ???
+    }
+
+  }
+
+  val x: Attempt3.Gen[Int] = Attempt3.Gen.chooseInt(10, 20)
+  val y: Attempt3.Gen[Double] = Attempt3.Gen.chooseDouble(10, 20)
+  val z = Attempt3.Gen.listOfN(10, x)
+
+  println(s"value is: ${x.run()}")
+  println(s"value is: ${y.run()}")
+  println(s"value is: ${z.run()}")
+
+  val c: Attempt3.Gen[List[Int]] = for {
+    a <- Attempt3.Gen.chooseInt(10, 20)
+    b <- Attempt3.Gen.listOfN(a, Attempt3.Gen.chooseInt(a, a + 10))
+  } yield b
+  println(s"value is ${c.run()}")
 }
+
 
 object TestStream {
 
