@@ -647,7 +647,7 @@ object Ch08 extends App {
 
 
     case class Gen[A](sample: State[RNG, A]) {
-      def run(): A = sample.run(RNG.Simple((new java.util.Date()).getTime))._1
+      def run(): A = sample.run(RNG.Simple(new java.util.Date().getTime))._1
 
       def map[B](f: A => B): Gen[B] = Gen(sample.map(f))
 
@@ -684,28 +684,67 @@ object Ch08 extends App {
       def chooseDouble(start: Int, stopExclusive: Int): Gen[Double] =
         Gen(State(RNG.double).map(n => start + n % (stopExclusive - start)))
 
-      def union[A](g1: Gen[A], g2: Gen[A])(f: (A, A) => A): Gen[A] =
-        for {
+      def union[A](g1: Gen[A], g2: Gen[A])(f: (A, A) => A): Gen[A] = {
+        val c: Gen[A] = for {
           a <- g1
           b <- g2
-        } yield unit(f(a, b))
+        } yield f(a, b)
+        c
+      }
     }
 
+    import Prop._
 
-    trait Prop[A] {
+    type TestCases = Int
+    type Result = Option[(FailedCase, SuccessCount)]
 
-      import Prop._
+    case class Prop[A](run: (TestCases, RNG) => Result) {
 
-      def check(): Either[(FailedCase, SuccessCount), SuccessCount]
+      def check(): Result = run(20, RNG.Simple(new java.util.Date().getTime))
 
-      def &&(p: Prop[A]): Prop[A]
+      def &&(p: Prop[A]): Prop[A] = ???
+
     }
 
     object Prop {
       type SuccessCount = Int
       type FailedCase = String
 
-      def forAll[A](a: Gen[A])(f: A => Boolean): Prop[List[A]] = ???
+      def buildMsg[A](s: A, e: Exception): String =
+        s"test case: $s\n" +
+          s"generated an exception: ${e.getMessage}\n" +
+          s"stack trace:\n ${e.getStackTrace.mkString("\n")}"
+
+      def randomStream[A](g: Gen[A])(rng: RNG): Stream[A] =
+        Stream.unfold(rng)(rng => {
+          val (a, rng1): (A, RNG) = g.sample.run(rng)
+          println(s"a random -> $a")
+          Some((a, rng1))
+        })
+
+      def forAll[A](as: Gen[A])(f: A => Boolean): Prop[List[A]] = Prop {
+        (n, rng) =>
+          randomStream(as)(rng).zip(Stream.from(0)).take(n).map {
+            case (a, i) => try {
+              println(i, a)
+              if (f(a)) {
+                println("ok")
+                None
+              } else {
+                println("not ok")
+                Some((a.toString, i))
+              }
+            } catch {
+              case e: Exception =>
+                println("got u")
+                Some((buildMsg(a, e), i))
+            }
+          }.find(a => {
+            println(s"is error defined? ${a.isDefined}")
+            a.isDefined
+          }).getOrElse(None)
+      }
+
     }
 
   }
@@ -723,6 +762,13 @@ object Ch08 extends App {
     b <- Attempt3.Gen.listOfN(a, Attempt3.Gen.chooseInt(a, a + 10))
   } yield b
   println(s"value is ${c.run()}")
+
+
+  Attempt3.Prop.forAll(x)(i => {
+    println(s"i is $i")
+    i > 15
+  }).check()
+
 }
 
 

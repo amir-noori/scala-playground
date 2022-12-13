@@ -88,33 +88,19 @@ object Ch09 {
 
   }
 
+  object Attempt2 {
 
-  //  object Attempt2 {
-  //
-  //    trait Result[R, E]
-  //
-  //    trait AbstractParser[INPUT, RESULT[_, _]] {
-  //      def parse(input: INPUT): RESULT
-  //    }
-  //
-  //    trait ParserApplier[Parser[_, _]] {
-  //      def run[I, R[_, _]](input: I)(p: Parser[I, R[_, _]]): R[_, _]
-  //    }
-  //
-  //  }
-  //
-  //
-  //  object Attempt3 {
-  //
-  //    trait Parser[A] {}
-  //
-  //
-  //    def many[A](p: Parser[A]): Parser[List[A]] = ???
-  //
-  //    def map[A, B](a: Parser[A])(f: A => B): Parser[B] = ???
-  //
-  //  }
+    trait Result[R, E]
 
+    trait AbstractParser[INPUT, RESULT[_, _]] {
+      //      def parse(input: INPUT): RESULT
+    }
+
+    trait ParserApplier[Parser[_, _]] {
+      def run[I, R[_, _]](input: I)(p: Parser[I, R[_, _]]): R[_, _]
+    }
+
+  }
 
   object Attempt3 {
 
@@ -148,8 +134,115 @@ object Ch09 {
 
   }
 
-  def main(args: Array[String]): Unit = {
+  object Attempt4 {
 
+    sealed trait Parser[A] { self =>
+      def unit[B](a: B): Parser[B]
+
+      def char(c: Char): Parser[A]
+
+      def combine(p: Parser[_]): Parser[A]
+
+      def map[B](f: A => B): Parser[B] = self.flatMap(a => unit(f(a)))
+
+      def flatMap[B](f: A => Parser[B]): Parser[B]
+
+    }
+
+    //    case class JsonParser() extends Parser[String] { self =>
+    //      override def char(c: Char): Parser[String] = ???
+    //
+    //      override def combine(p: Parser[_]): Parser[String] = ???
+    //
+    //      override def unit[B >: String](a: B): Parser[B] = ???
+    //
+    //      override def flatMap[B >: String](f: String => Parser[B]): Parser[B] = ???
+    //    }
+
+    case class CharACounterParser(count: Int = 0) extends Parser[Int] { self =>
+      override def char(c: Char): Parser[Int] =
+        if (c == 'a') CharACounterParser(count + 1) else CharACounterParser(count)
+
+      override def combine(p: Parser[_]): Parser[Int] =
+        p match {
+          case CharACounterParser(value) => CharACounterParser(count + value)
+          case _ => CharACounterParser(count)
+        }
+
+      override def toString: String = s"$count"
+
+      override def unit[B](a: B): Parser[B] = ???
+
+      override def flatMap[B](f: Int => Parser[B]): Parser[B] =
+        self match {
+          case CharACounterParser(value) => f(value)
+          case _ => f(0)
+        }
+
+    }
+
+    object Parser {
+
+      type ParseError = String
+
+      def or[A](p1: Parser[A], p2: Parser[A]): Parser[A] = p1.combine(p2)
+
+      implicit def string(s: String): Parser[String] = ???
+
+      implicit def operators[A](p: Parser[A]) =
+        ParserOps[A](p)
+
+      implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOps[String] =
+        ParserOps(f(a))
+
+      def listOfN[A](n: Int, p: Parser[A]): Parser[List[A]] = ???
+
+      def many[A](p: Parser[A]): Parser[List[A]] =
+        map2(p, many(p))(_ :: _) or p.unit(List())
+
+      def map2[A,B,C](p: Parser[A], p2: => Parser[B])(f: (A,B) => C): Parser[C] =
+        for { a <- p; b <- p2 } yield f(a,b)
+
+
+      case class ParserOps[A](p: Parser[A]) {
+        def |(p2: Parser[A]): Parser[A] = Parser.or(p, p2)
+
+        def or(p2: => Parser[A]): Parser[A] = Parser.or(p, p2)
+      }
+
+      def run[A](p: Parser[A], s: String): Either[ParseError, A] = ???
+
+
+    }
+
+    def main(args: Array[String]): Unit = {
+
+      //      val jsonParser = JsonParser()
+      // the following will automatically change jsonParser to ParserOps[JsonParser] and String into Parser[String] and into ParserOps[String]
+      //      jsonParser | ""
+
+      val charParser1 = CharACounterParser()
+      val charParser2 = CharACounterParser()
+      val a = charParser1
+        .char('a')
+        .char('b')
+        .char('a')
+      val b = charParser2
+        .char('a')
+        .char('a')
+        .char('c')
+
+      val c: Parser[Int] = a | b
+      println(s"char parser result -> ${a}")
+      println(s"char parser result -> ${b}")
+      println(s"char parser result -> ${c}")
+
+    }
+
+  }
+
+  def main(args: Array[String]): Unit = {
+    Attempt4.main(args)
   }
 
 }
