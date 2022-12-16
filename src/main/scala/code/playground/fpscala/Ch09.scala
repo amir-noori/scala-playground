@@ -7,7 +7,8 @@ object Ch09 {
 
   object Attempt1 {
 
-    trait Parsers[ParseError, Parser[+_]] { self =>
+    trait Parsers[ParseError, Parser[+_]] {
+      self =>
       def char(c: Char): Parser[Char] = string(c.toString) map ((x: String) => x.charAt(0))
 
       def succeed[A](a: A): Parser[A] = string("") map ((_: String) => a)
@@ -107,7 +108,8 @@ object Ch09 {
     trait Parser[A] {
     }
 
-    trait Parsers[ParseError, Parser[+_]] { self =>
+    trait Parsers[ParseError, Parser[+_]] {
+      self =>
       def run[A](p: Parser[A])(input: String): Either[ParseError, A] = ???
 
       def char(c: Char): Parser[Char] = ???
@@ -136,7 +138,8 @@ object Ch09 {
 
   object Attempt4 {
 
-    sealed trait Parser[A] { self =>
+    sealed trait Parser[A] {
+      self =>
       def unit[B](a: B): Parser[B]
 
       def char(c: Char): Parser[A]
@@ -159,7 +162,8 @@ object Ch09 {
     //      override def flatMap[B >: String](f: String => Parser[B]): Parser[B] = ???
     //    }
 
-    case class CharACounterParser(count: Int = 0) extends Parser[Int] { self =>
+    case class CharACounterParser(count: Int = 0) extends Parser[Int] {
+      self =>
       override def char(c: Char): Parser[Int] =
         if (c == 'a') CharACounterParser(count + 1) else CharACounterParser(count)
 
@@ -200,8 +204,8 @@ object Ch09 {
       def many[A](p: Parser[A]): Parser[List[A]] =
         map2(p, many(p))(_ :: _) or p.unit(List())
 
-      def map2[A,B,C](p: Parser[A], p2: => Parser[B])(f: (A,B) => C): Parser[C] =
-        for { a <- p; b <- p2 } yield f(a,b)
+      def map2[A, B, C](p: Parser[A], p2: => Parser[B])(f: (A, B) => C): Parser[C] =
+        for {a <- p; b <- p2} yield f(a, b)
 
 
       case class ParserOps[A](p: Parser[A]) {
@@ -241,8 +245,98 @@ object Ch09 {
 
   }
 
+  object Attempt5 {
+
+    trait ParserCombinator[Parser[+_], ParseError] {
+
+      type ParseError = String
+
+      def string(s: String): Parser[String]
+
+      def chars(s: String): Parser[List[Char]]
+
+      def or[A](p1: Parser[A], p2: Parser[A]): Parser[A]
+
+      def run[A](p: Parser[A])(input: String): Either[A, ParseError]
+
+      def char[A](a: Char): Parser[A] = ???
+
+      def listOfN[A](n: Int, p: Parser[A]): Parser[List[A]]
+
+      implicit def ops[A](p: Parser[A]): ParserOps[A] = ParserOps(p)
+
+      def map[A, B](f: A => B): Parser[B]
+
+      def flatMap[A, B](f: A => Parser[B]): Parser[B]
+
+      def fold[A, B](z: B)(f: (A, B) => B): Parser[B]
+
+
+      /**
+       * Syntax class
+       *
+       * @param p
+       * @tparam A
+       */
+      case class ParserOps[A](p: Parser[A]) {
+        self =>
+
+        def or[B >: A](p2: => Parser[B]): Parser[B] = self.or(p2)
+
+        def |[B >: A](p2: Parser[B]): Parser[B] = self.or(p2)
+
+        def map[B](f: A => B): Parser[B] = self.map(f)
+
+        def flatMap[B >: A](f: A => Parser[B]): Parser[B] = self.flatMap(f)
+
+        // Parser[List[Char]].fold(0)()
+        def fold[B >: A](z: B)(f: (A, B) => B): Parser[B] = self.fold(z)(f)
+
+      }
+
+    }
+
+    object ParserCombinator {
+
+    }
+
+
+    object CharParserTest {
+
+      type ParseError = String
+
+      case class Parsing[Parser[+_]](P: ParserCombinator[Parser, ParseError], c: Char) { self =>
+
+        import P._
+
+        def doRun[A](p: Parser[A], s: String) = run(p)(s)
+
+      }
+
+      case class CharParser[A](c: A) extends ParserCombinator[CharParser[_], String] {
+//        def parse(s: String): Parser[Int] = chars(s).map(listCh => listCh.foldLeft(0)((ch, count) => ch match {
+//          case self.c => count + 1
+//          case _ => count
+//        }))
+
+
+        override def map[A, B](f: A => B): CharParser[B]
+
+      }
+
+    }
+
+
+    def main(args: Array[String]): Unit = {
+      println("attempt 5 ...")
+      CharParserTest.CharParser().parse("this is a test string")
+    }
+
+
+  }
+
   def main(args: Array[String]): Unit = {
-    Attempt4.main(args)
+    Attempt5.main(args)
   }
 
 }
