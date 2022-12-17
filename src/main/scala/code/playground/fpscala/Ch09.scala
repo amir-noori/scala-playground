@@ -137,11 +137,12 @@ object Ch09 {
   object Attempt4 {
 
     sealed trait Parser[A] { self =>
-      def unit[B](a: B): Parser[B]
 
       def char(c: Char): Parser[A]
 
       def combine(p: Parser[_]): Parser[A]
+
+      def unit[B](a: B): Parser[B]
 
       def map[B](f: A => B): Parser[B] = self.flatMap(a => unit(f(a)))
 
@@ -212,6 +213,15 @@ object Ch09 {
 
       def run[A](p: Parser[A], s: String): Either[ParseError, A] = ???
 
+    }
+
+    object ParserLaws {
+
+      import Parser._
+
+      def id[A](a: A): A = a
+
+      def mapLaw[A](p: Parser[A]) = p.map(id) == p
 
     }
 
@@ -241,8 +251,23 @@ object Ch09 {
 
   }
 
+  object Attempt5 {
+
+    trait ParserCombinator[Parser[_]] {
+      def char[A](a: A): Parser[A]
+    }
+
+    object ParserCombinator {
+
+    }
+
+
+    def main(args: Array[String]): Unit =
+      println("attempt 5 ...")
+  }
+
   def main(args: Array[String]): Unit = {
-    Attempt4.main(args)
+    Attempt5.main(args)
   }
 
 }
