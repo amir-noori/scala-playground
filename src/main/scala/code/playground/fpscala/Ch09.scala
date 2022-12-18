@@ -136,7 +136,9 @@ object Ch09 {
 
   object Attempt4 {
 
+
     sealed trait Parser[A] { self =>
+      def unit[B](a: B): Parser[B]
 
       def char(c: Char): Parser[A]
 
@@ -201,8 +203,8 @@ object Ch09 {
       def many[A](p: Parser[A]): Parser[List[A]] =
         map2(p, many(p))(_ :: _) or p.unit(List())
 
-      def map2[A,B,C](p: Parser[A], p2: => Parser[B])(f: (A,B) => C): Parser[C] =
-        for { a <- p; b <- p2 } yield f(a,b)
+      def map2[A, B, C](p: Parser[A], p2: => Parser[B])(f: (A, B) => C): Parser[C] =
+        for {a <- p; b <- p2} yield f(a, b)
 
 
       case class ParserOps[A](p: Parser[A]) {
@@ -253,17 +255,178 @@ object Ch09 {
 
   object Attempt5 {
 
-    trait ParserCombinator[Parser[_]] {
-      def char[A](a: A): Parser[A]
+
+    trait ParserCombinator[Parser[+_], ParseError] {
+
+      type ParseError = String
+
+      def string(s: String): Parser[String] = ???
+
+      def succeed[A](a: A): Parser[A] = ???
+
+      def many[A](p: Parser[A]): Parser[List[A]] = ???
+
+      def chars(s: String): Parser[List[Char]] = ???
+
+      def or[A](p1: Parser[A], p2: Parser[A]): Parser[A] = ???
+
+      def run[A](p: Parser[A])(input: String): Either[A, ParseError] = ???
+
+      def char(a: Char): Parser[Char]
+
+      def listOfN[A](n: Int, p: Parser[A]): Parser[List[A]] = ???
+
+      implicit def ops[A](p: Parser[A]): ParserOps[A] = ParserOps(p)
+
+      def map[A, B](f: A => B): Parser[B] = ???
+
+      def flatMap[A, B](p: Parser[A])(f: A => Parser[B]): Parser[B] = ???
+
+      def fold[A, B](z: B)(f: (A, B) => B): Parser[B] = ???
+
+
+      /**
+       * Syntax class
+       *
+       * @param p
+       * @tparam A
+       */
+      case class ParserOps[A](p: Parser[A]) { self =>
+
+        def or[B >: A](p2: => Parser[B]): Parser[B] = self.or(p2)
+
+        def |[B >: A](p2: Parser[B]): Parser[B] = self.or(p2)
+
+        def map[B](f: A => B): Parser[B] = self.map(f)
+
+        def many[B](p2: Parser[B]): Parser[List[A]] = self.many(p2)
+
+        def flatMap[B >: A](f: A => Parser[B]): Parser[B] = self.flatMap(f)
+
+        // Parser[List[Char]].fold(0)()
+        def fold[B >: A](z: B)(f: (A, B) => B): Parser[B] = self.fold(z)(f)
+
+      }
+
     }
 
     object ParserCombinator {
 
     }
 
+    object CharParserTest {
 
-    def main(args: Array[String]): Unit =
+      type ParseError = String
+
+      case class Parsing[Parser[+_]](P: ParserCombinator[Parser, ParseError], c: Char) { self =>
+
+        import P._
+
+        def doRun[A](p: Parser[A], s: String) = run(p)(s)
+
+      }
+
+      case class CharCountParser[+A](c: A, count: Int) { self =>
+        def map[B](f: A => B): CharCountParser[B] =
+          self match {
+            case CharCountParser(ch, n) => CharCountParser(f(ch), n)
+          }
+      }
+
+      case class CharParsing() extends ParserCombinator[CharCountParser, String] { self =>
+
+        override def map[A, B](f: A => B): CharCountParser[B] = ???
+
+        override def string(s: String): CharCountParser[String] = ???
+
+        override def chars(s: String): CharCountParser[List[Char]] = ???
+
+        override def or[A](p1: CharCountParser[A], p2: CharCountParser[A]): CharCountParser[A] = ???
+
+        override def run[A](p: CharCountParser[A])(input: String): Either[A, String] = ???
+        //        {
+        //          val parser = chars(input).map(listCh =>
+        //            listCh.foldLeft(0)((ch, count) => ch match {
+        //              case p.c => count + 1
+        //              case _ => count
+        //            }))
+        //          p match {
+        //            case CharCountParser(ch, _) => Right("this actually must be left!")
+        //            case _ => Right("err")
+        //          }
+        //        }
+
+        override def listOfN[A](n: Int, p: CharCountParser[A]): CharCountParser[List[A]] = ???
+
+        override def fold[A, B](z: B)(f: (A, B) => B): CharCountParser[B] = ???
+
+        override def many[A](p: CharCountParser[A]): CharCountParser[List[A]] = ???
+
+        override def succeed[A](a: A): CharCountParser[A] = ???
+
+        override def flatMap[A, B](p: CharCountParser[A])(f: A => CharCountParser[B]): CharCountParser[B] = ???
+
+        override def char(a: Char): CharCountParser[Char] = ???
+      }
+
+    }
+
+    object CharParserTest2 {
+
+      case class CharCountParser[+A](input: A) extends ParserCombinator[CharCountParser, String] { self =>
+        def map_[B](f: A => B): CharCountParser[B] = self match {
+          case CharCountParser(ch) => CharCountParser(f(ch))
+        }
+
+        def many_[B >: A](p: CharCountParser[B]): CharCountParser[List[Char]] =
+          self match {
+            case CharCountParser(s: String) =>
+              p match {
+                case CharCountParser(ch: Char) => CharCountParser(s.foldLeft(List[Char]())((l, c) => {
+                  if (ch == c) ch :: l else l
+                }))
+              }
+            case CharCountParser(s: Char) =>
+              if (s == input) CharCountParser(List[Char](s)) else CharCountParser(List[Char]())
+          }
+
+        override def string(s: String): CharCountParser[String] =
+          CharCountParser(s)
+
+        override def char(a: Char): CharCountParser[Char] =
+          string(a.toString) map_ (_.charAt(0))
+      }
+
+      case class CharCountParsing(P: ParserCombinator[CharCountParser, String]) {
+
+        import P._
+
+        def howMany(input: String, c: Char): CharCountParser[Int] = {
+          string(input)
+            .many_(char(c))
+            .map_((a: Seq[Char]) => a.size)
+        }
+
+      }
+
+    }
+
+
+    def main(args: Array[String]): Unit = {
       println("attempt 5 ...")
+
+      //      CharParserTest
+      //        .CharParsing()
+      //        .run(CharParserTest.CharCountParser[Char]('a', 0))("this is a test string. all right.")
+      //
+      val P = CharParserTest2.CharCountParser[Char]('s')
+      val result: CharParserTest2.CharCountParser[Int] = CharParserTest2
+        .CharCountParsing(P)
+        .howMany("this is just a test.", 's')
+      println(s"result -> $result")
+    }
+
+
   }
 
   def main(args: Array[String]): Unit = {
