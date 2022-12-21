@@ -7,8 +7,7 @@ object Ch09 {
 
   object Attempt1 {
 
-    trait Parsers[ParseError, Parser[+_]] {
-      self =>
+    trait Parsers[ParseError, Parser[+_]] { self =>
       def char(c: Char): Parser[Char] = string(c.toString) map ((x: String) => x.charAt(0))
 
       def succeed[A](a: A): Parser[A] = string("") map ((_: String) => a)
@@ -108,8 +107,7 @@ object Ch09 {
     trait Parser[A] {
     }
 
-    trait Parsers[ParseError, Parser[+_]] {
-      self =>
+    trait Parsers[ParseError, Parser[+_]] { self =>
       def run[A](p: Parser[A])(input: String): Either[ParseError, A] = ???
 
       def char(c: Char): Parser[Char] = ???
@@ -258,33 +256,50 @@ object Ch09 {
   object Attempt5 {
 
 
-    trait ParserCombinator[Parser[+_], ParseError] {
+    trait ParserCombinator[Parser[+_], ParseError] { self =>
 
       type ParseError = String
 
       def string(s: String): Parser[String] = ???
 
-      def succeed[A](a: A): Parser[A] = ???
+      def many[A](p: Parser[A]): Parser[List[A]] =
+        map2(p, many(p))((a, b) => a :: b) or succeed(List[A]())
 
-      def many[A](p: Parser[A]): Parser[List[A]] = ???
+      def char(c: Char): Parser[Char] = ???
 
-      def chars(s: String): Parser[List[Char]] = ???
+      def many1[A](p: Parser[A]): Parser[List[A]] = ???
+
+      def product[A, B](p1: Parser[A], p2: Parser[B]): Parser[(A, B)] = ???
+
+      // count how many characters of type c this parser has
+      def countChars(c: Char): Parser[Int] =
+        map(many(succeed(c)))(_.size)
+
+      def countChars_(c: Char): Parser[Int] =
+        succeed(c).many.slice.map(_.length)
 
       def or[A](p1: Parser[A], p2: Parser[A]): Parser[A] = ???
 
       def run[A](p: Parser[A])(input: String): Either[A, ParseError] = ???
 
-      def char(a: Char): Parser[Char]
+      def succeed[A](a: A): Parser[A] = string("") map (_ => a)
 
-      def listOfN[A](n: Int, p: Parser[A]): Parser[List[A]] = ???
+      def listOfN[A](n: Int, p: Parser[A]): Parser[List[A]] =
+        if (n <= 0) succeed(List())
+        else map2(p, listOfN(n - 1, p))(_ :: _)
 
       implicit def ops[A](p: Parser[A]): ParserOps[A] = ParserOps(p)
 
-      def map[A, B](f: A => B): Parser[B] = ???
+      def map[A, B](a: Parser[A])(f: A => B): Parser[B] = ???
+
+      def map2[A, B, C](p1: Parser[A], p2: Parser[B])(f: (A, B) => C): Parser[C] =
+        product(p1, p2).map(v => f(v._1, v._2))
 
       def flatMap[A, B](p: Parser[A])(f: A => Parser[B]): Parser[B] = ???
 
       def fold[A, B](z: B)(f: (A, B) => B): Parser[B] = ???
+
+      def slice[A](p: Parser[A]): Parser[String] = ???
 
 
       /**
@@ -293,21 +308,38 @@ object Ch09 {
        * @param p
        * @tparam A
        */
-      case class ParserOps[A](p: Parser[A]) { self =>
+      case class ParserOps[A](p: Parser[A]) {
 
-        def or[B >: A](p2: => Parser[B]): Parser[B] = self.or(p2)
+        def or[B >: A](p2: => Parser[B]): Parser[B] = self.or(p, p2)
 
-        def |[B >: A](p2: Parser[B]): Parser[B] = self.or(p2)
+        def |[B >: A](p2: Parser[B]): Parser[B] = self.or(p, p2)
 
-        def map[B](f: A => B): Parser[B] = self.map(f)
+        def **[B >: A](p2: Parser[B]): Parser[(A, B)] = self.product(p, p2)
 
-        def many[B](p2: Parser[B]): Parser[List[A]] = self.many(p2)
+        def map[B](f: A => B): Parser[B] = self.map(p)(f)
 
-        def flatMap[B >: A](f: A => Parser[B]): Parser[B] = self.flatMap(f)
+        def many: Parser[List[A]] = self.many(p)
+
+        def flatMap[B >: A](f: A => Parser[B]): Parser[B] = self.flatMap(p)(f)
 
         // Parser[List[Char]].fold(0)()
         def fold[B >: A](z: B)(f: (A, B) => B): Parser[B] = self.fold(z)(f)
 
+        def slice: Parser[String] = self.slice(p)
+
+      }
+
+      object ParserCombinatorLaws {
+        def id[A](a: A): A = a
+
+        def mapIdentityLaw[A](p: Parser[A]): Boolean =
+          p.map(id) == p
+
+        def productLawCommutative[A, B](p1: Parser[A], p2: Parser[B]): Boolean =
+          product(p1, p2) == product(p2, p1)
+
+        def productLawAssociative[A, B, C](p1: Parser[A], p2: Parser[B], p3: Parser[C]): Boolean =
+          product(p1, p2) ** p3 == p1 ** product(p2, p3)
       }
 
     }
@@ -315,6 +347,7 @@ object Ch09 {
     object ParserCombinator {
 
     }
+
 
     object CharParserTest {
 
@@ -337,11 +370,7 @@ object Ch09 {
 
       case class CharParsing() extends ParserCombinator[CharCountParser, String] { self =>
 
-        override def map[A, B](f: A => B): CharCountParser[B] = ???
-
         override def string(s: String): CharCountParser[String] = ???
-
-        override def chars(s: String): CharCountParser[List[Char]] = ???
 
         override def or[A](p1: CharCountParser[A], p2: CharCountParser[A]): CharCountParser[A] = ???
 
@@ -368,7 +397,6 @@ object Ch09 {
 
         override def flatMap[A, B](p: CharCountParser[A])(f: A => CharCountParser[B]): CharCountParser[B] = ???
 
-        override def char(a: Char): CharCountParser[Char] = ???
       }
 
     }
@@ -410,6 +438,10 @@ object Ch09 {
         }
 
       }
+
+    }
+
+    object CharParserTest3 {
 
     }
 
