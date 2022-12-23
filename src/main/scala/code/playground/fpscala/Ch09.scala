@@ -511,8 +511,6 @@ object Ch09 {
 
 
     import ParserCombinator._
-    import JSON._
-
     case class ParseState[A](a: Either[String, A], l: Location)
 
     case class JSONParser(input: String) extends ParserCombinator[ParseState] {
