@@ -1,13 +1,15 @@
 package code.playground.fpscala
 
 import scala.language.implicitConversions
+import scala.util.matching.Regex
 
 object Ch09 {
 
 
   object Attempt1 {
 
-    trait Parsers[ParseError, Parser[+_]] { self =>
+    trait Parsers[ParseError, Parser[+_]] {
+      self =>
       def char(c: Char): Parser[Char] = string(c.toString) map ((x: String) => x.charAt(0))
 
       def succeed[A](a: A): Parser[A] = string("") map ((_: String) => a)
@@ -107,7 +109,8 @@ object Ch09 {
     trait Parser[A] {
     }
 
-    trait Parsers[ParseError, Parser[+_]] { self =>
+    trait Parsers[ParseError, Parser[+_]] {
+      self =>
       def run[A](p: Parser[A])(input: String): Either[ParseError, A] = ???
 
       def char(c: Char): Parser[Char] = ???
@@ -137,7 +140,8 @@ object Ch09 {
   object Attempt4 {
 
 
-    sealed trait Parser[A] { self =>
+    sealed trait Parser[A] {
+      self =>
       def unit[B](a: B): Parser[B]
 
       def char(c: Char): Parser[A]
@@ -162,7 +166,8 @@ object Ch09 {
     //      override def flatMap[B >: String](f: String => Parser[B]): Parser[B] = ???
     //    }
 
-    case class CharACounterParser(count: Int = 0) extends Parser[Int] { self =>
+    case class CharACounterParser(count: Int = 0) extends Parser[Int] {
+      self =>
       override def char(c: Char): Parser[Int] =
         if (c == 'a') CharACounterParser(count + 1) else CharACounterParser(count)
 
@@ -219,8 +224,6 @@ object Ch09 {
 
     object ParserLaws {
 
-      import Parser._
-
       def id[A](a: A): A = a
 
       def mapLaw[A](p: Parser[A]) = p.map(id) == p
@@ -256,11 +259,12 @@ object Ch09 {
   object Attempt5 {
 
 
-    trait ParserCombinator[Parser[+_], ParseError] { self =>
+    trait ParserCombinator[Parser[+_]] {
+      self =>
 
-      type ParseError = String
+      import ParserCombinator._
 
-      def string(s: String): Parser[String] = ???
+      implicit def string(s: String): Parser[String] = ???
 
       def many[A](p: Parser[A]): Parser[List[A]] =
         map2(p, many(p))((a, b) => a :: b) or succeed(List[A]())
@@ -269,7 +273,8 @@ object Ch09 {
 
       def many1[A](p: Parser[A]): Parser[List[A]] = ???
 
-      def product[A, B](p1: Parser[A], p2: Parser[B]): Parser[(A, B)] = ???
+      def product[A, B](p1: Parser[A], p2: => Parser[B]): Parser[(A, B)] =
+        p1.flatMap((a: A) => p2.map((b: B) => (a, b)))
 
       // count how many characters of type c this parser has
       def countChars(c: Char): Parser[Int] =
@@ -290,17 +295,46 @@ object Ch09 {
 
       implicit def ops[A](p: Parser[A]): ParserOps[A] = ParserOps(p)
 
-      def map[A, B](a: Parser[A])(f: A => B): Parser[B] = ???
+      implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOps[String] =
+        ParserOps(f(a))
 
-      def map2[A, B, C](p1: Parser[A], p2: Parser[B])(f: (A, B) => C): Parser[C] =
+
+      def map[A, B](p: Parser[A])(f: A => B): Parser[B] =
+        self.flatMap(p)(a => succeed(f(a)))
+
+      def map2[A, B, C](p1: Parser[A], p2: => Parser[B])(f: (A, B) => C): Parser[C] =
+        for {
+          a <- p1
+          b <- p2
+        } yield f(a, b)
+
+      def map2_[A, B, C](p1: Parser[A], p2: Parser[B])(f: (A, B) => C): Parser[C] =
         product(p1, p2).map(v => f(v._1, v._2))
-
-      def flatMap[A, B](p: Parser[A])(f: A => Parser[B]): Parser[B] = ???
 
       def fold[A, B](z: B)(f: (A, B) => B): Parser[B] = ???
 
       def slice[A](p: Parser[A]): Parser[String] = ???
 
+      implicit def regex(r: Regex): Parser[String] = ???
+
+      def flatMap[A, B](p: Parser[A])(f: A => Parser[B]): Parser[B] =
+        self.flatMap(p)(f)
+
+      def parseDigitXFollowedByXChar(c: Char): Parser[Int] =
+        regex("\\d+".r).flatMap(a => listOfN(a.toInt, char(c)).map(l => l.length))
+
+      def label[A](message: String)(p: Parser[A]): Parser[A] = ???
+
+      def errorLocation(e: ParseError): Location = ???
+
+      def errorMessage(e: ParseError): String = ???
+
+      def scope[A](msg: String)(p: Parser[A]): Parser[A] = ???
+
+      def attempt[A](p: Parser[A]): Parser[A] = ???
+
+
+      case class ParseError(stack: List[(Location, String)])
 
       /**
        * Syntax class
@@ -310,22 +344,31 @@ object Ch09 {
        */
       case class ParserOps[A](p: Parser[A]) {
 
+        def label(message: String): Parser[A] = self.label(message)(p)
+
+        def scope(msg: String): Parser[A] = self.scope(msg)(p)
+
         def or[B >: A](p2: => Parser[B]): Parser[B] = self.or(p, p2)
 
         def |[B >: A](p2: Parser[B]): Parser[B] = self.or(p, p2)
 
-        def **[B >: A](p2: Parser[B]): Parser[(A, B)] = self.product(p, p2)
+        def **[B](p2: => Parser[B]): Parser[(A, B)] = self.product(p, p2)
 
         def map[B](f: A => B): Parser[B] = self.map(p)(f)
 
         def many: Parser[List[A]] = self.many(p)
 
-        def flatMap[B >: A](f: A => Parser[B]): Parser[B] = self.flatMap(p)(f)
+        def flatMap[B](f: A => Parser[B]): Parser[B] = self.flatMap(p)(f)
 
         // Parser[List[Char]].fold(0)()
         def fold[B >: A](z: B)(f: (A, B) => B): Parser[B] = self.fold(z)(f)
 
         def slice: Parser[String] = self.slice(p)
+
+        def sep[A](p: Parser[A], p2: Parser[Any]): Parser[List[A]] = ???
+
+        def surround[A](start: Parser[Any], stop: Parser[Any])(p: => Parser[A]) = ???
+
 
       }
 
@@ -345,15 +388,17 @@ object Ch09 {
     }
 
     object ParserCombinator {
-
+      case class Location(input: String, offset: Int = 0) {
+        lazy val line = input.slice(0, offset + 1).count(_ == '\n') + 1
+        lazy val col = input.slice(0, offset + 1).reverse.indexOf('\n')
+      }
     }
 
 
     object CharParserTest {
 
-      type ParseError = String
-
-      case class Parsing[Parser[+_]](P: ParserCombinator[Parser, ParseError], c: Char) { self =>
+      case class Parsing[Parser[+_]](P: ParserCombinator[Parser], c: Char) {
+        self =>
 
         import P._
 
@@ -361,20 +406,22 @@ object Ch09 {
 
       }
 
-      case class CharCountParser[+A](c: A, count: Int) { self =>
+      case class CharCountParser[+A](c: A, count: Int) {
+        self =>
         def map[B](f: A => B): CharCountParser[B] =
           self match {
             case CharCountParser(ch, n) => CharCountParser(f(ch), n)
           }
       }
 
-      case class CharParsing() extends ParserCombinator[CharCountParser, String] { self =>
+      case class CharParsing() extends ParserCombinator[CharCountParser] {
+        self =>
 
         override def string(s: String): CharCountParser[String] = ???
 
         override def or[A](p1: CharCountParser[A], p2: CharCountParser[A]): CharCountParser[A] = ???
 
-        override def run[A](p: CharCountParser[A])(input: String): Either[A, String] = ???
+        // override def run[A](p: CharCountParser[A])(input: String): Either[A, String] = ???
         //        {
         //          val parser = chars(input).map(listCh =>
         //            listCh.foldLeft(0)((ch, count) => ch match {
@@ -403,7 +450,8 @@ object Ch09 {
 
     object CharParserTest2 {
 
-      case class CharCountParser[+A](input: A) extends ParserCombinator[CharCountParser, String] { self =>
+      case class CharCountParser[+A](input: A) extends ParserCombinator[CharCountParser] {
+        self =>
         def map_[B](f: A => B): CharCountParser[B] = self match {
           case CharCountParser(ch) => CharCountParser(f(ch))
         }
@@ -427,7 +475,7 @@ object Ch09 {
           string(a.toString) map_ (_.charAt(0))
       }
 
-      case class CharCountParsing(P: ParserCombinator[CharCountParser, String]) {
+      case class CharCountParsing(P: ParserCombinator[CharCountParser]) {
 
         import P._
 
@@ -443,6 +491,46 @@ object Ch09 {
 
     object CharParserTest3 {
 
+    }
+
+    trait JSON
+
+    object JSON {
+      case object JNull extends JSON
+
+      case class JNumber(get: Double) extends JSON
+
+      case class JString(get: String) extends JSON
+
+      case class JBool(get: Boolean) extends JSON
+
+      case class JArray(get: IndexedSeq[JSON]) extends JSON
+
+      case class JObject(get: Map[String, JSON]) extends JSON
+    }
+
+
+    import ParserCombinator._
+    import JSON._
+
+    case class ParseState[A](a: Either[String, A], l: Location)
+
+    case class JSONParser(input: String) extends ParserCombinator[ParseState] {
+
+
+      override def run[A](p: ParseState[A])(input: String): Either[A, ParseError] =
+        ???
+
+      override def string(s: String): ParseState[String] =
+        if (input.startsWith(s)) ParseState(Right(s), Location(s, s.length))
+        else ParseState(Left(s"$s is not expected!"), Location(s))
+
+      override def flatMap[A, B](p: ParseState[A])(f: A => ParseState[B]): ParseState[B] =
+        p match {
+          case ParseState(a, l) => a match {
+            case Right(value) => f(value)
+          }
+        }
     }
 
 
