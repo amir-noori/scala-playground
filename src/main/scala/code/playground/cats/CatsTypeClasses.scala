@@ -36,7 +36,6 @@ object CatsTypeClasses {
   }
 
 
-
   trait Apply[F[_]] extends Semigroupal[F] with Functor[F] {
     def ap[A, B](fab: F[A => B], fa: F[A]): F[B]
 
@@ -54,6 +53,86 @@ object CatsTypeClasses {
 
   def temTimes[F[_]](x: F[Int])(implicit functor: Functor[F]): F[Int] =
     functor.map(x)(a => a * 10)
+
+
+}
+
+
+object TypeClasses {
+
+  trait Monoid[A] {
+    def empty: A
+
+    def combine(x: A, y: A): A
+  }
+
+  implicit val intAdditionMonoid: Monoid[Int] = new Monoid[Int] {
+    def empty: Int = 0
+
+    def combine(x: Int, y: Int): Int = x + y
+  }
+
+  implicit val stringMonoid: Monoid[String] = new Monoid[String] {
+    def empty: String = ""
+
+    def combine(x: String, y: String): String = x + y
+  }
+
+  case class SetMonoid[A]() extends Monoid[Set[A]] {
+    override def empty: Set[A] = Set[A]()
+
+    override def combine(x: Set[A], y: Set[A]): Set[A] = x union y
+  }
+
+  object SetMonoid {
+    implicit val intSetMonoid: Monoid[Set[Int]] = SetMonoid[Int]()
+    implicit val stringSetMonoid: Monoid[Set[String]] = SetMonoid[String]()
+  }
+
+
+  def combineAll[A](list: List[A])(implicit m: Monoid[A]): A = list.foldRight(m.empty)(m.combine)
+
+
+  def sumInts_(list: List[Int]): Int =
+    list.foldRight(intAdditionMonoid.empty)(intAdditionMonoid.combine)
+
+  def concatStrings_(list: List[String]): String =
+    list.foldRight(stringMonoid.empty)(stringMonoid.combine)
+
+  def unionSets_[A](list: List[Set[A]]): Set[A] =
+    list.foldRight(SetMonoid[A]().empty)(SetMonoid[A]().combine)
+
+
+  import SetMonoid._
+
+  def sumInts(list: List[Int]): Int = combineAll(list)
+
+  def concatStrings(list: List[String]): String = combineAll(list)
+
+  def unionSets[A](list: List[Set[A]])(implicit m: Monoid[Set[A]]): Set[A] = combineAll(list)
+
+  def main(args: Array[String]): Unit = {
+    sumInts(List(10, 20, 30))
+    concatStrings(List("a", "b", "c"))
+    unionSets(List(Set(10), Set(20), Set(30)))
+  }
+
+
+  case class Pair[A, B](a: A, b: B)
+
+  def pairMonoid[A, B](implicit ma: Monoid[A], mb: Monoid[B]) = new Monoid[Pair[A, B]] {
+    override def empty: Pair[A, B] = Pair(ma.empty, mb.empty)
+
+    override def combine(x: Pair[A, B], y: Pair[A, B]): Pair[A, B] =
+      Pair(ma.combine(x.a, y.a), mb.combine(x.b, y.b))
+  }
+
+  implicit val intStringPairMonoid: Monoid[Pair[Int, String]] = pairMonoid[Int, String]
+
+  def mergePairs(list: List[Pair[Int, String]])(implicit m: Monoid[Pair[Int, String]]): Pair[Int, String] =
+    combineAll(list)(m)
+
+  mergePairs(List(Pair(10, "a"), Pair(20, "b")))
 
 
 }

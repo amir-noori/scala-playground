@@ -26,6 +26,7 @@ object DoobieDemo extends IOApp {
     "root123"
   )
 
+
   def findActorById(id: Int): IO[Option[Actor]] = {
     val query = sql"select id, name from actors where id=$id".query[Actor]
     val action = query.option
