@@ -52,8 +52,19 @@ object Ch10 {
     def foldMap[A, B](as: List[A], m: Monoid[B])(f: A => B): B =
       as.foldLeft(m.id())((b, a) => m.op(b, f(a)))
 
-    def foldRight[A, B](as: List[A])(z: B)(f: (A, B) => B): B =
+    def foldRight[A, B](as: List[A])(z: B)(f: (A, B) => B): B = {
+      /*
+        f: (A, B) => B is f: A => B => B is f: A => (B => B)
+        now consider (B => B) is X then f: A => X then
+        foldMap(as, ?)(f: A => X) is:
+        foldMap(as, Monoid[X])(f: A => X): X is:
+        foldMap(as, Monoid[B => B])(f: A => (B => B)): X is:
+        foldMap(as, Monoid[B => B])(f: A => (B => B)): X is:
+        foldMap(as, endoMonoid[B])(f.curried): X is:
+        foldMap(as, endoMonoid[B])(f.curried): (B => B)
+       */
       foldMap(as, endoMonoid[B])(a => b => f(a, b))(z)
+    }
 
     def foldLeft[A, B](as: List[A])(z: B)(f: (B, A) => B): B =
       foldMap(as, dual(endoMonoid[B]))(a => b => f(b, a))(z)
@@ -61,12 +72,16 @@ object Ch10 {
     def concatenate[A](as: List[A], m: Monoid[A]): A =
       foldMap(as, m)(a => a)
 
+    def concatString(as: List[String]): String =
+      foldMap(as, stringMonoid)(a => a)
+
     def concatenate_[A](as: List[A], m: Monoid[A]): A = {
       as match {
         case x :: xs => m.op(x, concatenate_(xs, m))
         case Nil => m.id()
       }
     }
+
 
     object MonoidTest {
 

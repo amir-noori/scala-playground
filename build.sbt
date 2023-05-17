@@ -10,6 +10,7 @@ val AlpakkaVersion = "3.0.4"
 val DoobieVersion = "1.0.0-RC1"
 val NewTypeVersion = "0.4.4"
 
+libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value
 
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor-typed" % AkkaVersion,
