@@ -1,7 +1,5 @@
 package code.playground.fpscala
 
-import code.playground.cats.effect.FPMonad.Monad
-
 import scala.annotation.tailrec
 
 object Ch11 {
