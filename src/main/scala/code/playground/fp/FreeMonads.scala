@@ -103,18 +103,11 @@ object FreeMonads extends App {
   }
 
   // the business logic
-  val logic: Free[InOut, Unit] = InOut.printLine("what is the id?")
-    .flatMap(_ => {
-      val z1: Free[InOut, Unit] = InOut.getLine
-        .flatMap(id => {
-          val z2: Free[InOut, Unit] = InOut.printLine(s"id: ${id}")
-            .map(_ => ())
-          z2
-        }
-        )
-      z1
-    }
-    )
+  val logic: Free[InOut, Unit] = for {
+    _ <- InOut.printLine("what is the id?")
+    id <- InOut.getLine
+    _ <- InOut.printLine(s"id: ${id}")
+  } yield ()
 
   logic.foldMap(inOutToConsoleTransformer).run()
 

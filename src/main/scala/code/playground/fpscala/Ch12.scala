@@ -34,4 +34,23 @@ object Ch12 {
       flatMap(mf)(f => map(ma)(f))
   }
 
+
+  val optionApplicative: Applicative[Option] = new Applicative[Option] {
+    override def apply[A, B](fab: Option[A => B])(fa: Option[A]): Option[B] = fa match {
+      case Some(a) => fab match {
+        case Some(ab) => Some(ab(a))
+        case _ => None
+      }
+      case _ => None
+    }
+
+    override def unit[A](a: A): Option[A] = Some(a)
+  }
+
+
 }
+
+
+
+
+
