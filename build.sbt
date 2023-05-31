@@ -20,8 +20,8 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-persistence-testkit" % AkkaVersion,
   "com.typesafe.akka" %% "akka-persistence-testkit" % AkkaVersion % Test,
   "com.typesafe.akka" %% "akka-serialization-jackson" % AkkaVersion,
-  "com.typesafe.akka" %% "akka-persistence-testkit" % AkkaVersion % Test
-
+  "com.typesafe.akka" %% "akka-persistence-testkit" % AkkaVersion % Test,
+  "com.olvind.tui" %% "tui" % "0.0.7",
 )
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % AkkaVersion
 

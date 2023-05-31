@@ -150,10 +150,6 @@ object Ch11 {
     override def flatMap[A, B](ma: StringState[A])(f: A => StringState[B]): StringState[B] =
       ma.flatMap(f)
 
-    def flatMap_[A, B](ma: StringState[A])(f: A => StringState[B]): StringState[B] = ma match {
-      case State(run) => new StringState(f compose run)
-    }
-
   }
 
 

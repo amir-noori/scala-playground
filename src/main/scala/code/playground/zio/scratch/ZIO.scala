@@ -1,5 +1,7 @@
 package code.playground.zio.scratch
 
+import scala.annotation.tailrec
+
 trait ZIO[+A] { self =>
 
   import ZIO._
@@ -17,10 +19,10 @@ trait ZIO[+A] { self =>
 
   // this is not be stack safe
   def steps: Int = self match {
-    case Succeed(_) => 1
-    case Effect(_) => 1
-    case zip: Zip[_, _] => zip.left.steps + zip.right.steps
-  }
+      case Succeed(_) => 1
+      case Effect(_) => 1
+      case zip: Zip[_, _] => zip.left.steps + zip.right.steps
+    }
 
 }
 
