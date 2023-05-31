@@ -1,6 +1,5 @@
 package code.playground.fpscala
 
-
 import scala.annotation.tailrec
 
 object Ch11 {
