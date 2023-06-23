@@ -6,7 +6,7 @@ import cats.effect.unsafe.implicits.global
 import scala.annotation.tailrec
 
 object EffectsIO {
-  
+
   val decimalIO: IO[Int] = IO.pure(10)
   val decimalIO2: IO[Int] = IO.pure(20)
   val decimalLazyIO: IO[Int] = IO.delay(10)
