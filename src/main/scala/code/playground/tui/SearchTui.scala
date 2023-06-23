@@ -87,3 +87,4 @@ import tui.{Borders, Color, Constraint, Layout, Modifier, Span, Spans, Style, Te
 //                      terminal: Terminal,
 //                      appTabs: TabsState
 //                    ) {}
+
