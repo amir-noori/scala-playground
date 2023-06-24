@@ -25,7 +25,7 @@ object Utils {
 
     @tailrec
     def go(i: BigInt = 0, currentPrime: BigInt = 2, acc: List[BigInt] = List()): List[BigInt] = {
-      if(i == n) return acc
+      if (i == n) return acc
       go(i + 1, getNextPrime(currentPrime, acc), currentPrime :: acc)
     }
 
@@ -38,6 +38,17 @@ object Utils {
   def isPrime(n: BigInt, previousPrimes: List[BigInt]): Boolean = {
     val sqrt = BigInt(Math.sqrt(n.toInt).toInt)
     !previousPrimes.exists(p => p <= sqrt && n % p == 0)
+  }
+
+  def getPrimesBelowN(n: Int): List[BigInt] = {
+
+    @tailrec
+    def go(currentPrime: BigInt = 2, acc: List[BigInt] = List()): List[BigInt] = {
+      if (currentPrime <= n) go(getNextPrime(currentPrime, acc), currentPrime +: acc)
+      else acc
+    }
+
+    go()
   }
 
   def getPrimeFactors(n: Int): Seq[Int] =
@@ -66,4 +77,19 @@ object Utils {
 
     go(2, n)
   }
+
+  def getPrimeNumbersBySieveMethod(n: Int): Seq[Int] = {
+    @tailrec
+    def go(p: Int, nums: Seq[Int], primes: Seq[Int]): Seq[Int] = {
+      if (p < n) {
+        val filteredAcc = nums.filter(i => p < i && i % p != 0)
+        if (filteredAcc.isEmpty) primes
+        else go(filteredAcc.last, filteredAcc, filteredAcc.last +: primes)
+      }
+      else primes
+    }
+
+    go(2, (2 to n).foldLeft(Seq[Int]())((z, i) => i +: z), Seq(2))
+  }
+
 }
