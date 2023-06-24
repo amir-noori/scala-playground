@@ -66,46 +66,26 @@ object Problem11 {
     m.copy(rowCount = 20, colCount = 20)
   }
 
+  def calculateMax[A](l: Seq[(A, List[Entry])]): Int = {
+    l.map({
+      case (_, item) =>
+        if (item.length >= 4)
+          (0 to item.length - 4)
+            .map(n => {
+              item(n).value * item(n + 1).value * item(n + 2).value * item(n + 3).value
+            }).max
+        else 0
+    }).max
+  }
+
   def solution(): Int = {
     val m = getMatrix()
-    val rowMax = m.rows.map({
-      case (i, row) =>
-        (0 to m.rowCount - 4)
-          .map(n => {
-            row(n).value * row(n + 1).value * row(n + 2).value * row(n + 3).value
-          }).max
-    }).max
-
-    val colMax = m.cols.map({
-      case (i, col) =>
-        (0 to m.colCount - 4)
-          .map(n => {
-            col(n).value * col(n + 1).value * col(n + 2).value * col(n + 3).value
-          }).max
-    }).max
-
-    val diagMax = m.diags.map({
-      case ((r, c), diag) =>
-        if (diag.length >= 4)
-          (0 to diag.length - 4)
-            .map(n => {
-              diag(n).value * diag(n + 1).value * diag(n + 2).value * diag(n + 3).value
-            }).max
-        else 0
-    }).max
-
-    val antiDiagMax = m.diagsr.map({
-      case ((r, c), diag) =>
-        if (diag.length >= 4)
-          (0 to diag.length - 4)
-            .map(n => {
-              diag(n).value * diag(n + 1).value * diag(n + 2).value * diag(n + 3).value
-            }).max
-        else 0
-    }).max
+    val rowMax = calculateMax(m.rows)
+    val colMax = calculateMax(m.cols)
+    val diagMax = calculateMax(m.diags)
+    val antiDiagMax = calculateMax(m.diagsr)
 
     List(rowMax, colMax, diagMax, antiDiagMax).max
-
   }
 
   def main(args: Array[String]): Unit = {
