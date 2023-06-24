@@ -2,7 +2,7 @@ package code.playground.challanges.projectEuler
 
 
 /**
- * Solution is complicated but worth practicing the data matrix structure
+ * Solution is complicated but worth practicing the matrix data structure
  */
 object Problem11 {
 
