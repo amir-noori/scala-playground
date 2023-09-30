@@ -51,17 +51,19 @@ object Utils {
     go()
   }
 
-  def getPrimeFactors(n: Int): Seq[Int] =
+  def getPrimeFactors(n: Int): scala.collection.mutable.Seq[Int] =
     getPrimeFactorsAndRanks(n).map(pf => pf.prime)
 
-  def getPrimeFactorsAndRanks(n: Int): Seq[Factor] = {
+  def getPrimeFactorsAndRanks(n: Int): scala.collection.mutable.Seq[Factor] = {
+
+    import scala.collection.mutable.Seq
 
     @tailrec
     def go(currentPrime: Int, value: Int, acc: Seq[Factor] = Seq[Factor]()): Seq[Factor] = {
       if (currentPrime > value) return acc
       if (value % currentPrime != 0) {
         val next = getNextPrime(currentPrime)
-        go(next, n, acc)
+        go(next, value, acc)
       } else if (acc.isEmpty) {
         go(currentPrime, value / currentPrime, Seq(Factor(currentPrime, 1)))
       } else {
@@ -72,7 +74,6 @@ object Utils {
         }
         go(currentPrime, value / currentPrime, update)
       }
-
     }
 
     go(2, n)
@@ -91,5 +92,6 @@ object Utils {
 
     go(2, (2 to n).foldLeft(Seq[Int]())((z, i) => i +: z), Seq(2))
   }
+
 
 }

@@ -30,7 +30,7 @@ object Tweets extends App {
     Tweet(Author("Hasan"), System.currentTimeMillis(), "akka is great") ::
     Tweet(Author("mmartynas"), System.currentTimeMillis, "wow #akka !") ::
     Tweet(Author("akkateam"), System.currentTimeMillis, "#akka rocks!") ::
-    Tweet(Author("bananaman"), System.currentTimeMillis, "#bananas rock!") ::
+    Tweet(Author("bananaman"), System.currentTimeMillis, "#bananas rock! #banana") ::
     Tweet(Author("appleman"), System.currentTimeMillis, "#apples rock!") ::
     Tweet(Author("drama"), System.currentTimeMillis, "we compared #apples to #oranges!") ::
     Nil
